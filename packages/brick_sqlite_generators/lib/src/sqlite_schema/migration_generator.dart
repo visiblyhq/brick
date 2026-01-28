@@ -13,6 +13,7 @@ const _insertForeignKeyChecker = TypeChecker.typeNamed(InsertForeignKey);
 const _insertTableChecker = TypeChecker.typeNamed(InsertTable);
 const _renameColumnChecker = TypeChecker.typeNamed(RenameColumn);
 const _renameTableChecker = TypeChecker.typeNamed(RenameTable);
+const _migrationCommandChecker = TypeChecker.typeNamed(MigrationCommand);
 
 /// [Migration] is an abstract class; this is a library-specific implementation
 /// to access migration properties.
@@ -49,8 +50,11 @@ class MigrationGenerator extends Generator {
   }
 
   /// Convert [MigrationCommand]s in constant form to [MigrationCommand]s
-  List<MigrationCommand> _migrationCommandsFromReader(List<DartObject> rawCommands) {
-    return rawCommands.map((object) {
+  List<MigrationCommand> _migrationCommandsFromReader(
+      List<DartObject> rawCommands,
+      ) {
+    return rawCommands
+        .map((object) {
       final reader = ConstantReader(object);
       if (_createIndexChecker.isExactlyType(object.type!)) {
         if (!reader.read('columns').isList) {
@@ -104,8 +108,8 @@ class MigrationGenerator extends Generator {
           foreignKeyColumn: reader.read('foreignKeyColumn').isNull
               ? null
               : reader.read('foreignKeyColumn').stringValue,
-          onDeleteCascade:
-              !reader.read('onDeleteCascade').isNull && reader.read('onDeleteCascade').boolValue,
+          onDeleteCascade: !reader.read('onDeleteCascade').isNull &&
+              reader.read('onDeleteCascade').boolValue,
           onDeleteSetDefault: !reader.read('onDeleteSetDefault').isNull &&
               reader.read('onDeleteSetDefault').boolValue,
         );
@@ -124,10 +128,17 @@ class MigrationGenerator extends Generator {
           reader.read('oldName').stringValue,
           reader.read('newName').stringValue,
         );
+      } else if (_migrationCommandChecker.isAssignableFromType(object.type!)) {
+        return null;
       } else {
-        throw UnimplementedError('Cannot create migration line for ${object.type}');
+        throw UnimplementedError(
+          'Cannot create migration line for ${object.type}',
+        );
       }
-    }).toList();
+    })
+        .where((command) => command != null)
+        .cast<MigrationCommand>()
+        .toList();
   }
 
   /// Creates a new migration from the delta between the existing migration and a new schema
